@@ -1,5 +1,5 @@
 inlets = 1;
-outlets = 1;
+outlets = 2;
 
 var bx = 16;
 var by = 8;
@@ -16,7 +16,7 @@ for(i=0;i<64;i++) { ledBuffer[i] = 0; steps[i] = 0; atlasNow[i] = 0; }
 var currentStep = 0;
 var currentDir = 0;
 var frame = new Task(atlasThis, this);
-frame.interval = 50; // 5fps redraw
+frame.interval = 10; // 5fps redraw
 frame.repeat();
 
 function anything() {
@@ -28,7 +28,12 @@ function anything() {
 			if(args[3]==1) { steps[args[1]+8*args[2]] = 1-steps[args[1]+8*args[2]]; refresh(); }
 		}
 		else { // right quad
-			if(args[3]==1) { currentDir = 1-currentDir; refresh(); }
+			if(args[3]==1) { // if a press
+				//currentDir = 1-currentDir; refresh();
+				xn =+ Math.pow((args[1]-10)/4,3);
+				yn =+ Math.pow((args[2]-2)/4,3)-0.2;
+				post(xn,yn,"\n");
+			}
 		}
 
 		//if(args[3]==1) atlasNow[args[1]+(bx*args[2])] = 15; // fully activate cell at press location
@@ -46,7 +51,7 @@ function refresh() {
 	for(x=0;x<8;x++) // 
 		for(y=0;y<8;y++) { 
 			leds[x+bx*y] = Math.max(leds[x+bx*y], (steps[x+8*y]*15));
-			leds[x+8+bx*y] = atlasNow[x+8*y];
+			leds[x+8+bx*y] = Math.ceil(atlasNow[x+8*y]); // need to take Math.floor as atlasNow holds float levels
 		}
 
 	drawLeds();	
@@ -54,14 +59,14 @@ function refresh() {
 
 var xo = 0;
 var yo = 0;
-var xn = 1.6;
-var yn = 2.2; // temporary values for calculation
+var xn = 0;
+var yn = 0; // temporary values for calculation
 
 function atlasThis() { // timed function
 	currentStep = (currentStep+1)%8;
 	refresh();
 
-	for(i=0;i<64;i++) atlasNow[i] = Math.max(atlasNow[i]-1,0);
+	for(i=0;i<64;i++) atlasNow[i] = Math.max(atlasNow[i]-0.2,0); // fade out by 0.2 (of 15) each frame
 	xo = xn;
 	yo = yn;
 
@@ -70,20 +75,21 @@ function atlasThis() { // timed function
 
 	// led map is each cell worth 0.5 & start from -1
 	// each point needs to be drawn in 4 cells to allow AA
-	var xnp = Math.floor((xn+2)*1);
-	var ynp = Math.floor((yn+2)*1);
+	var xnp = Math.floor((xn+1)*2);
+	var ynp = Math.floor((yn+1)*2);
 	
-	var x0 = 1-(((xn+2)*1)-xnp);
-	var x1 = ((xn+2)*1)-xnp;
-	var y0 = 1-(((yn+2)*1)-ynp);
-	var y1 = ((yn+2)*1)-ynp;
+	var x0 = 1-(((xn+1)*2)-xnp);
+	var x1 = ((xn+1)*2)-xnp;
+	var y0 = 1-(((yn+1)*2)-ynp);
+	var y1 = ((yn+1)*2)-ynp;
 
-	atlasNow[xnp+8*ynp] = x0*y0*15;
-	atlasNow[1+xnp+8*ynp] = x1*y0*15;
-	atlasNow[8+xnp+8*ynp] = x0*y1*15;
-	atlasNow[9+xnp+8*ynp] = x1*y1*15;
+	atlasNow[xnp+8*ynp] = Math.min((x0*y0*15) + atlasNow[xnp+8*ynp], 15);
+	atlasNow[1+xnp+8*ynp] = Math.min((x1*y0*15) + atlasNow[1+xnp+8*ynp], 15);
+	atlasNow[8+xnp+8*ynp] = Math.min((x0*y1*15) + atlasNow[8+xnp+8*ynp], 15);
+	atlasNow[9+xnp+8*ynp] = Math.min((x1*y1*15) + atlasNow[9+xnp+8*ynp], 15);
 
 	//atlasNow = atlasNext; // dump new atlas into the current array
+	outlet(1,xn,yn);
 }
 
 function drawLeds() {
